@@ -24,6 +24,18 @@ python generate_sdk.py
 make sdk
 ```
 
+### Testing
+```bash
+# Install test dependencies
+pip install -e ".[dev]"
+
+# Run tests
+pytest tests/ -v
+
+# Run tests with coverage
+pytest tests/ -v --cov=. --cov-report=html
+```
+
 ### Docker
 ```bash
 # From parent directory
@@ -39,6 +51,13 @@ docker compose up --build
 - GET http://localhost:9000/openapi.json → OpenAPI specification
 
 ### Available Endpoints
-- POST /runs - Create a new valuation run
+- POST /runs - Create a new valuation run (with validation and queuing)
 - GET /runs/{id} - Get run status
-- GET /runs/{id}/result - Get run result (dummy data)
+- GET /runs/{id}/result - Get run result (calculated with dummy pricing)
+
+### Features
+- **Validation**: Comprehensive validation of IRS/CCS specifications
+- **Queuing**: Asynchronous processing of valuation runs
+- **Pricing**: Dummy pricing functions for IRS and CCS (ready for QuantLib integration)
+- **Curves**: Curve bootstrapping and interpolation (placeholder implementation)
+- **Lineage**: Full lineage tracking with market data and model hashes
