@@ -1,20 +1,14 @@
 from typing import Dict, Any
-from datetime import datetime
+from datetime import datetime, date, timedelta
 from ..schemas.instrument import IRSSpec
 from ..schemas.run import PVBreakdown
 from ..curves.base import CurveBundle, interpolate_curve
+from ..curves.ois import bootstrap_usd_ois_curve, get_discount_factor
+from ..curves.forward import project_flat_forwards, create_simple_schedule
 
 def price_irs(spec: IRSSpec, curves: CurveBundle) -> PVBreakdown:
     """
-    Price an Interest Rate Swap (placeholder implementation)
-    
-    In a real implementation, this would:
-    1. Build payment schedules for both legs
-    2. Calculate fixed leg PV using discount curve
-    3. Calculate floating leg PV using forward curve
-    4. Apply proper day count conventions
-    5. Handle business day adjustments
-    6. Calculate net PV
+    Price an Interest Rate Swap with DCF calculations
     
     Args:
         spec: IRS specification
@@ -23,35 +17,43 @@ def price_irs(spec: IRSSpec, curves: CurveBundle) -> PVBreakdown:
     Returns:
         PVBreakdown with present value components
     """
-    # Placeholder implementation - return zeros with lineage info
     now = datetime.utcnow()
     
-    # Get curve hashes for lineage
-    market_data_hash = f"dummy_market_data_{curves.market_data_profile}_{curves.as_of_date}"
-    model_hash = f"dummy_irs_model_{now.strftime('%Y%m%d_%H%M%S')}"
+    # Bootstrap USD OIS curve for discounting
+    discount_curve = bootstrap_usd_ois_curve(curves.as_of_date)
     
-    # Calculate dummy components (all zeros for now)
-    fixed_leg_pv = 0.0
-    floating_leg_pv = 0.0
-    net_pv = fixed_leg_pv - floating_leg_pv  # Assuming pay fixed
+    # Calculate fixed leg PV using DCF
+    fixed_leg_pv = calculate_fixed_leg_pv(spec, discount_curve)
+    
+    # Calculate floating leg PV (par by construction for now)
+    floating_leg_pv = calculate_floating_leg_pv(spec, discount_curve)
+    
+    # Net PV (assuming pay fixed)
+    net_pv = floating_leg_pv - fixed_leg_pv
+    
+    # Get curve hashes for lineage
+    market_data_hash = f"usd_ois_quotes_{curves.market_data_profile}_{curves.as_of_date}"
+    model_hash = f"dcf_irs_model_{now.strftime('%Y%m%d_%H%M%S')}"
     
     components = {
         "fixed_leg_pv": fixed_leg_pv,
         "floating_leg_pv": floating_leg_pv,
         "net_pv": net_pv,
         "notional": spec.notional,
-        "currency": spec.ccy
+        "currency": spec.ccy,
+        "fixed_rate": spec.fixedRate or 0.0
     }
     
     # Add curve information to metadata
     metadata = {
         "instrument_type": "IRS",
-        "pricing_model": "dummy_irs_pricer",
-        "curves_used": list(curves.curve_refs.keys()),
+        "pricing_model": "dcf_irs_pricer",
+        "curves_used": ["USD_OIS_DISCOUNT"],
         "as_of_date": curves.as_of_date.isoformat(),
         "market_data_profile": curves.market_data_profile,
         "spec_hash": f"irs_{spec.notional}_{spec.ccy}_{spec.effective}_{spec.maturity}",
-        "calculation_timestamp": now.isoformat()
+        "calculation_timestamp": now.isoformat(),
+        "discount_curve_nodes": len(discount_curve.curve_points) if hasattr(discount_curve, 'curve_points') else 0
     }
     
     return PVBreakdown(
@@ -64,27 +66,55 @@ def price_irs(spec: IRSSpec, curves: CurveBundle) -> PVBreakdown:
         metadata=metadata
     )
 
-def calculate_fixed_leg_pv(spec: IRSSpec, curves: CurveBundle) -> float:
+def calculate_fixed_leg_pv(spec: IRSSpec, discount_curve) -> float:
     """
-    Calculate fixed leg present value (placeholder)
+    Calculate fixed leg present value using DCF
     
-    In a real implementation, this would:
-    1. Generate payment schedule
-    2. Calculate payment amounts
-    3. Discount to present value
+    Args:
+        spec: IRS specification
+        discount_curve: Discount curve reference
+        
+    Returns:
+        Fixed leg present value
     """
-    # Placeholder - return zero
-    return 0.0
+    # Create simple payment schedule
+    schedule = create_simple_schedule(spec.effective, spec.maturity, spec.freqFixed)
+    
+    fixed_rate = spec.fixedRate or 0.05  # Default to 5% if not provided
+    notional = spec.notional
+    
+    total_pv = 0.0
+    
+    for i in range(len(schedule) - 1):
+        start_date = schedule[i]
+        end_date = schedule[i + 1]
+        
+        # Calculate day count (simple ACT/360)
+        day_count = (end_date - start_date).days / 360.0
+        
+        # Calculate payment amount
+        payment_amount = notional * fixed_rate * day_count
+        
+        # Get discount factor
+        discount_factor = get_discount_factor(discount_curve, end_date)
+        
+        # Calculate present value
+        pv = payment_amount * discount_factor
+        total_pv += pv
+    
+    return total_pv
 
-def calculate_floating_leg_pv(spec: IRSSpec, curves: CurveBundle) -> float:
+def calculate_floating_leg_pv(spec: IRSSpec, discount_curve) -> float:
     """
-    Calculate floating leg present value (placeholder)
+    Calculate floating leg present value (par by construction)
     
-    In a real implementation, this would:
-    1. Generate payment schedule
-    2. Calculate forward rates
-    3. Calculate payment amounts
-    4. Discount to present value
+    Args:
+        spec: IRS specification
+        discount_curve: Discount curve reference
+        
+    Returns:
+        Floating leg present value (par value)
     """
-    # Placeholder - return zero
-    return 0.0
+    # For a par swap, floating leg PV = notional
+    # This is a simplified assumption
+    return spec.notional

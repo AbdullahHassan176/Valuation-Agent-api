@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from app.routers import runs
+from app.routers import runs, curves
 
 app = FastAPI(
     title="Valuation Agent API",
@@ -11,6 +11,7 @@ app = FastAPI(
 
 # Include routers
 app.include_router(runs.router)
+app.include_router(curves.router)
 
 @app.get("/healthz")
 def health_check():
