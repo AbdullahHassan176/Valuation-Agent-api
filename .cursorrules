@@ -1,0 +1,19 @@
+# Cursor Rules — API (Valuation Agent Workspace)
+
+GOAL
+- FastAPI façade exposing deterministic endpoints for valuation, curves, data, and exports.
+- Later, wrap QuantLib/Strata behind stable endpoints (no LLM logic here).
+- Today: only /healthz placeholder exists.
+
+RUNTIME
+- PORT=9000
+
+HOW TO RUN (later)
+- uvicorn app:app --host 0.0.0.0 --port 9000
+
+DOCKER
+- Built by parent docker-compose. Replace placeholder with real app later.
+
+GUARDRAILS
+- No agent logic here. Pure functions, strict schemas, reproducible outputs.
+- Maintain versioning and lineage (data/model hashes) when implemented.
