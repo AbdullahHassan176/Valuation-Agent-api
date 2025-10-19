@@ -1,127 +1,83 @@
-from typing import List, Dict
-from datetime import date, timedelta
-from dataclasses import dataclass
+"""Forward rate curve projection (placeholder implementation)."""
 
-from .ois import CurveRef, get_discount_factor
+from typing import List, Dict, Any
+from datetime import date
+from ..models import Currency
 
-@dataclass
-class RatePoint:
-    """A forward rate point"""
-    start_date: date
-    end_date: date
-    forward_rate: float
-    day_count: float
-    discount_factor_start: float
-    discount_factor_end: float
 
-def project_forwards(index: str, discount_curve: CurveRef, schedule: List[date]) -> List[RatePoint]:
-    """
-    Project forward rates from discount curve and payment schedule
+class ForwardCurve:
+    """Forward rate curve projection."""
+    
+    def __init__(self, currency: Currency, as_of: date):
+        """Initialize forward curve.
+        
+        Args:
+            currency: Currency for the curve
+            as_of: As-of date for the curve
+        """
+        self.currency = currency
+        self.as_of = as_of
+        self.forward_rates = {}
+    
+    def project_forward_rates(self, discount_curve: Dict[str, Any]) -> Dict[str, Any]:
+        """Project forward rates from discount curve.
+        
+        Args:
+            discount_curve: Bootstrapped discount curve
+            
+        Returns:
+            Forward rate curve information
+        """
+        try:
+            # Simple forward rate calculation
+            # In real implementation, would use QuantLib's forward rate calculations
+            forward_nodes = []
+            
+            nodes = discount_curve.get('nodes', [])
+            for i, node in enumerate(nodes):
+                if i == 0:
+                    # First node: forward rate = spot rate
+                    forward_rate = node['rate']
+                else:
+                    # Calculate forward rate between previous and current node
+                    prev_node = nodes[i-1]
+                    current_rate = node['rate']
+                    prev_rate = prev_node['rate']
+                    
+                    # Simple forward rate calculation
+                    forward_rate = (current_rate + prev_rate) / 2
+                
+                forward_node = {
+                    'tenor': node['tenor'],
+                    'forward_rate': forward_rate,
+                    'maturity_date': node['maturity_date'],
+                    'discount_factor': node['discount_factor']
+                }
+                forward_nodes.append(forward_node)
+                self.forward_rates[node['tenor']] = forward_rate
+            
+            return {
+                'currency': self.currency.value,
+                'as_of': self.as_of.isoformat(),
+                'method': 'ForwardRateProjection',
+                'nodes': forward_nodes,
+                'node_count': len(forward_nodes)
+            }
+            
+        except Exception as e:
+            raise ValueError(f"Error projecting forward rates: {str(e)}")
+
+
+def project_forward_rates(currency: Currency, as_of: date, discount_curve: Dict[str, Any]) -> Dict[str, Any]:
+    """Project forward rates from discount curve.
     
     Args:
-        index: Rate index (e.g., "USD-LIBOR-3M", "SOFR")
-        discount_curve: Discount curve reference
-        schedule: List of payment dates
+        currency: Currency for the curve
+        as_of: As-of date
+        discount_curve: Bootstrapped discount curve
         
     Returns:
-        List of forward rate points
+        Forward rate curve information
     """
-    rate_points = []
-    
-    for i in range(len(schedule) - 1):
-        start_date = schedule[i]
-        end_date = schedule[i + 1]
-        
-        # Get discount factors
-        df_start = get_discount_factor(discount_curve, start_date)
-        df_end = get_discount_factor(discount_curve, end_date)
-        
-        # Calculate day count (simple ACT/360 for now)
-        day_count = (end_date - start_date).days / 360.0
-        
-        # Calculate forward rate using discount factors
-        # Forward rate = (DF_start / DF_end - 1) / day_count
-        if day_count > 0 and df_end > 0:
-            forward_rate = (df_start / df_end - 1.0) / day_count
-        else:
-            forward_rate = 0.0
-        
-        rate_point = RatePoint(
-            start_date=start_date,
-            end_date=end_date,
-            forward_rate=forward_rate,
-            day_count=day_count,
-            discount_factor_start=df_start,
-            discount_factor_end=df_end
-        )
-        rate_points.append(rate_point)
-    
-    return rate_points
-
-def project_flat_forwards(index: str, discount_curve: CurveRef, schedule: List[date], par_rate: float) -> List[RatePoint]:
-    """
-    Project flat forward rates (placeholder implementation)
-    
-    Args:
-        index: Rate index
-        discount_curve: Discount curve reference
-        schedule: List of payment dates
-        par_rate: Par rate for the period
-        
-    Returns:
-        List of forward rate points with flat rates
-    """
-    rate_points = []
-    
-    for i in range(len(schedule) - 1):
-        start_date = schedule[i]
-        end_date = schedule[i + 1]
-        
-        # Get discount factors
-        df_start = get_discount_factor(discount_curve, start_date)
-        df_end = get_discount_factor(discount_curve, end_date)
-        
-        # Calculate day count
-        day_count = (end_date - start_date).days / 360.0
-        
-        # Use par rate as forward rate (placeholder)
-        forward_rate = par_rate
-        
-        rate_point = RatePoint(
-            start_date=start_date,
-            end_date=end_date,
-            forward_rate=forward_rate,
-            day_count=day_count,
-            discount_factor_start=df_start,
-            discount_factor_end=df_end
-        )
-        rate_points.append(rate_point)
-    
-    return rate_points
-
-def create_simple_schedule(effective_date: date, maturity_date: date, frequency: str = "Q") -> List[date]:
-    """
-    Create a simple payment schedule
-    
-    Args:
-        effective_date: Effective date
-        maturity_date: Maturity date
-        frequency: Payment frequency (Q = quarterly)
-        
-    Returns:
-        List of payment dates
-    """
-    schedule = [effective_date]
-    
-    if frequency == "Q":
-        # Quarterly payments
-        current_date = effective_date
-        while current_date < maturity_date:
-            # Add 3 months (90 days for simplicity)
-            current_date = current_date + timedelta(days=90)
-            if current_date < maturity_date:
-                schedule.append(current_date)
-    
-    schedule.append(maturity_date)
-    return schedule
-
+    curve = ForwardCurve(currency, as_of)
+    return curve.project_forward_rates(discount_curve)

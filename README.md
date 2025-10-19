@@ -1,63 +1,91 @@
-# Valuation-Agent-api
+# Valuation API
 
-Deterministic valuation API for Valuation Agent Workspace.
+Deterministic valuation engine for financial instruments.
 
-## How to run (Phase 0)
+## Features
 
-### Local Development
+- FastAPI-based REST API
+- Support for various financial instruments
+- QuantLib integration for pricing models
+- Comprehensive Pydantic schemas
+- Health check endpoints
+- CORS support for frontend integration
+
+## Quick Start
+
+### Prerequisites
+
+- Python 3.11+
+- Poetry
+
+### Installation
+
 ```bash
 # Install dependencies
-pip install fastapi uvicorn[standard] pydantic
+poetry install
 
-# Run the server
-uvicorn app:app --host 0.0.0.0 --port 9000
+# Run the development server
+poetry run uvicorn app.main:app --reload
 ```
 
-### Generate SDKs
-```bash
-# Install SDK generation dependencies
-pip install openapi-python-client
+### API Endpoints
 
-# Generate SDKs for frontend and backend
-python generate_sdk.py
-# OR use Makefile (if make is available)
-make sdk
-```
+- `GET /` - Root endpoint
+- `GET /healthz` - Health check
+- `GET /health` - Detailed health check
+- `GET /docs` - API documentation (Swagger UI)
+- `GET /redoc` - Alternative API documentation
 
 ### Testing
+
 ```bash
-# Install test dependencies
-pip install -e ".[dev]"
+# Test health endpoint
+curl http://localhost:9000/healthz
 
-# Run tests
-pytest tests/ -v
-
-# Run tests with coverage
-pytest tests/ -v --cov=. --cov-report=html
+# Expected response:
+# {"ok":true,"service":"valuation-api","timestamp":"2024-01-01T00:00:00","status":"healthy"}
 ```
 
-### Docker
-```bash
-# From parent directory
-docker compose up --build
+## Development
+
+### Project Structure
+
+```
+api/
+├── app/
+│   ├── main.py              # FastAPI application
+│   ├── settings.py          # Configuration
+│   ├── routers/
+│   │   └── health.py        # Health endpoints
+│   └── core/
+│       └── models.py        # Pydantic schemas
+├── pyproject.toml           # Poetry dependencies
+├── Dockerfile              # Container configuration
+└── README.md               # This file
 ```
 
-### Health Check
-- GET http://localhost:9000/healthz → `{"ok": true, "service": "api"}`
+### Adding New Endpoints
 
-### OpenAPI Documentation
-- GET http://localhost:9000/docs → Interactive API documentation
-- GET http://localhost:9000/redoc → ReDoc API documentation
-- GET http://localhost:9000/openapi.json → OpenAPI specification
+1. Create a new router in `app/routers/`
+2. Import and include the router in `app/main.py`
+3. Add corresponding Pydantic models in `app/core/models.py`
 
-### Available Endpoints
-- POST /runs - Create a new valuation run (with validation and queuing)
-- GET /runs/{id} - Get run status
-- GET /runs/{id}/result - Get run result (calculated with dummy pricing)
+### Environment Variables
 
-### Features
-- **Validation**: Comprehensive validation of IRS/CCS specifications
-- **Queuing**: Asynchronous processing of valuation runs
-- **Pricing**: Dummy pricing functions for IRS and CCS (ready for QuantLib integration)
-- **Curves**: Curve bootstrapping and interpolation (placeholder implementation)
-- **Lineage**: Full lineage tracking with market data and model hashes
+- `PORT` - Server port (default: 9000)
+- `HOST` - Server host (default: 0.0.0.0)
+- `DEBUG` - Debug mode (default: False)
+
+## Docker
+
+```bash
+# Build image
+docker build -t valuation-api .
+
+# Run container
+docker run -p 9000:9000 valuation-api
+```
+
+## License
+
+MIT

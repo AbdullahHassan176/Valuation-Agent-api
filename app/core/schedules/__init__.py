@@ -12,6 +12,8 @@ from .schedule_builder import (
     create_schedule
 )
 
+# Note: Functions like make_schedule, roll_date, etc. are available in the parent schedules.py file
+
 __all__ = [
     "Calendar",
     "BusinessDayConvention", 

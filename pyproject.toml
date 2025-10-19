@@ -1,28 +1,43 @@
-[build-system]
-requires = ["setuptools>=61.0", "wheel"]
-build-backend = "setuptools.build_meta"
-
-[project]
-name = "valuation-agent-api"
+[tool.poetry]
+name = "valuation-api"
 version = "0.1.0"
-description = "Deterministic valuation API for Valuation Agent Workspace"
-dependencies = [
-    "fastapi>=0.104.0",
-    "uvicorn[standard]>=0.24.0",
-    "pydantic>=2.0.0",
-    "numpy>=1.24.0",
-    "pandas>=2.0.0",
-    "quantlib-python>=1.32",
-    "python-dateutil>=2.8.0",
-    "xlsxwriter>=3.1.0",
-    "python-docx>=0.8.11",
-]
+description = "Deterministic valuation engine for financial instruments"
+authors = ["Valuation Team <team@valuation.com>"]
+readme = "README.md"
+packages = [{include = "app"}]
 
-[project.optional-dependencies]
-dev = [
-    "pytest>=7.0.0",
-    "pytest-asyncio>=0.21.0",
-    "pytest-cov>=4.0.0",
-    "httpx>=0.25.0",
-    "openapi-python-client>=0.12.0",
-]
+[tool.poetry.dependencies]
+python = "^3.9"
+fastapi = "^0.104.1"
+uvicorn = {extras = ["standard"], version = "^0.24.0"}
+pydantic = "^2.5.0"
+pydantic-settings = "^2.1.0"
+numpy = "^1.24.0"
+pandas = "^2.0.0"
+python-dateutil = "^2.8.0"
+# quantlib-python = "^1.32"  # Optional for now
+xlsxwriter = "^3.1.0"
+pytest = "^7.4.0"
+httpx = "^0.25.0"
+requests = "^2.31.0"
+ruff = "^0.1.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest-asyncio = "^0.21.0"
+pytest-cov = "^4.1.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.ruff]
+target-version = "py311"
+line-length = 88
+select = ["E", "F", "W", "C90", "I", "N", "UP", "YTT", "S", "BLE", "FBT", "B", "A", "COM", "C4", "DTZ", "T10", "EM", "EXE", "FA", "ISC", "ICN", "G", "INP", "PIE", "T20", "PYI", "PT", "Q", "RSE", "RET", "SLF", "SLOT", "SIM", "TID", "TCH", "INT", "ARG", "PTH", "ERA", "PD", "PGH", "PL", "TRY", "FLY", "NPY", "AIR", "PERF", "FURB", "LOG", "RUF"]
+ignore = ["E501", "W503", "COM812", "ISC001"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]

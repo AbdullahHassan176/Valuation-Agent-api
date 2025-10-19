@@ -1,2 +1,1 @@
-# Curves package
-
+"""Curve bootstrapping modules."""

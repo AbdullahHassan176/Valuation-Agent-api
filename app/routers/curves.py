@@ -1,136 +1,239 @@
-from typing import Dict, List
-from fastapi import APIRouter, HTTPException, status
+"""Curve bootstrapping endpoints."""
+
+from typing import Dict, Any, List
 from datetime import date
-from pydantic import BaseModel
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel, Field
 
-from ..core.curves.ois import bootstrap_usd_ois_curve
-from ..data.catalog import catalog
-from ..data.validation import DataValidator
+from app.core.models import Currency
+from app.core.curves.ois import bootstrap_ois_curve
+from app.core.curves.fx import bootstrap_fx_forward_curve
+from app.core.marketdata.adapters import get_data_provider
 
-router = APIRouter(prefix="/curves", tags=["curves"])
+router = APIRouter()
 
-# In-memory storage for curves
-curves_db: Dict[str, Dict] = {}
+# In-memory storage for curves (PoC)
+curves_storage: Dict[str, Dict[str, Any]] = {}
+fx_storage: Dict[str, Dict[str, Any]] = {}
 
-class BootstrapRequest(BaseModel):
-    """Request to bootstrap a curve"""
-    curve_type: str = "USD_OIS"
-    as_of_date: date
-    market_data_profile: str = "default"
 
-class CurveNodeResponse(BaseModel):
-    """Response for a curve node"""
-    tenor: str
-    maturity_date: date
-    zero_rate: float
-    discount_factor: float
-    day_count: float
-
-class CurveResponse(BaseModel):
-    """Response for a bootstrapped curve"""
-    curve_id: str
-    curve_type: str
-    currency: str
-    index: str
-    as_of_date: date
-    nodes: List[CurveNodeResponse]
-    version: int
-
-@router.post("/bootstrap", response_model=CurveResponse, status_code=status.HTTP_201_CREATED)
-async def bootstrap_curve(request: BootstrapRequest):
-    """Bootstrap a curve from market data"""
+class CurveBootstrapRequest(BaseModel):
+    """Request model for curve bootstrapping."""
     
+    as_of: date = Field(..., description="As-of date for the curve")
+    currency: Currency = Field(..., description="Currency for the curve")
+    provider: str = Field("synthetic", description="Data provider")
+
+
+class FXBootstrapRequest(BaseModel):
+    """Request model for FX forward bootstrapping."""
+    
+    as_of: date = Field(..., description="As-of date for the curve")
+    pair: str = Field(..., description="Currency pair (e.g., 'USD/EUR')")
+    provider: str = Field("synthetic", description="Data provider")
+
+
+class CurveRef(BaseModel):
+    """Curve reference response."""
+    
+    id: str
+    as_of: date
+    currency: str
+    method: str
+    nodes: List[Dict[str, Any]]
+    node_count: int
+
+
+class FxFwdRef(BaseModel):
+    """FX forward reference response."""
+    
+    id: str
+    as_of: date
+    pair: str
+    spot_rate: float
+    method: str
+    nodes: List[Dict[str, Any]]
+    node_count: int
+
+
+@router.post("/curves/bootstrap", response_model=CurveRef)
+async def bootstrap_curve(request: CurveBootstrapRequest) -> CurveRef:
+    """Bootstrap OIS discount curve.
+    
+    Args:
+        request: Curve bootstrap request
+        
+    Returns:
+        Bootstrapped curve reference
+        
+    Raises:
+        HTTPException: If bootstrapping fails
+    """
     try:
-        # Load and validate quotes
-        if request.curve_type == "USD_OIS":
-            quotes = catalog.get_usd_ois_quotes()
-            expected_type = "OIS"
-        else:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Unsupported curve type: {request.curve_type}"
-            )
+        # Get data provider
+        provider = get_data_provider(request.provider)
         
-        # Validate quotes
-        validator = DataValidator()
-        validation_results = validator.validate_all(quotes, expected_type)
+        # Get market data
+        rates_data = provider.get_ois_rates(request.currency, request.as_of)
         
-        if validator.has_errors(validation_results):
-            error_messages = validator.get_error_messages(validation_results)
+        if not rates_data:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Data validation failed: {'; '.join(error_messages)}"
+                status_code=404,
+                detail=f"No market data available for {request.currency.value} from {request.provider}"
             )
         
         # Bootstrap curve
-        curve_ref = bootstrap_usd_ois_curve(request.as_of_date)
+        curve_data = bootstrap_ois_curve(request.currency, request.as_of, rates_data)
         
-        # Convert to response format
-        nodes = []
-        if hasattr(curve_ref, 'curve_nodes'):
-            for node in curve_ref.curve_nodes:
-                node_response = CurveNodeResponse(
-                    tenor=node.tenor,
-                    maturity_date=node.maturity_date,
-                    zero_rate=node.zero_rate,
-                    discount_factor=node.discount_factor,
-                    day_count=node.day_count
-                )
-                nodes.append(node_response)
-        
-        # Generate version number
-        version = len(curves_db) + 1
+        # Generate curve ID
+        curve_id = f"{request.currency.value}_{request.as_of.isoformat()}_{request.provider}"
         
         # Store curve
-        curve_data = {
-            "curve_id": curve_ref.curve_id,
-            "curve_type": curve_ref.curve_type.value,
-            "currency": curve_ref.currency,
-            "index": curve_ref.index,
-            "as_of_date": curve_ref.as_of_date,
-            "nodes": nodes,
-            "version": version,
-            "raw_curve_ref": curve_ref
-        }
-        curves_db[curve_ref.curve_id] = curve_data
+        curves_storage[curve_id] = curve_data
         
-        return CurveResponse(
-            curve_id=curve_ref.curve_id,
-            curve_type=curve_ref.curve_type.value,
-            currency=curve_ref.currency,
-            index=curve_ref.index,
-            as_of_date=curve_ref.as_of_date,
-            nodes=nodes,
-            version=version
+        # Return curve reference
+        return CurveRef(
+            id=curve_id,
+            as_of=request.as_of,
+            currency=request.currency.value,
+            method=curve_data['method'],
+            nodes=curve_data['nodes'],
+            node_count=curve_data['node_count']
         )
         
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to bootstrap curve: {str(e)}"
+            status_code=500,
+            detail=f"Error bootstrapping curve: {str(e)}"
         )
 
-@router.get("/{curve_id}", response_model=CurveResponse)
-async def get_curve(curve_id: str):
-    """Get a bootstrapped curve"""
-    if curve_id not in curves_db:
+
+@router.post("/fx/bootstrap", response_model=FxFwdRef)
+async def bootstrap_fx_forward(request: FXBootstrapRequest) -> FxFwdRef:
+    """Bootstrap FX forward curve.
+    
+    Args:
+        request: FX bootstrap request
+        
+    Returns:
+        Bootstrapped FX forward reference
+        
+    Raises:
+        HTTPException: If bootstrapping fails
+    """
+    try:
+        # Parse currency pair
+        if '/' not in request.pair:
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid currency pair format. Use 'USD/EUR' format."
+            )
+        
+        base_currency, quote_currency = request.pair.split('/')
+        
+        # Get data provider
+        provider = get_data_provider(request.provider)
+        
+        # Get FX spot rate
+        spot_data = provider.get_fx_spot(request.pair, request.as_of)
+        spot_rate = spot_data['spot_rate']
+        
+        # Get FX forward points
+        points_data = provider.get_fx_points(request.pair, request.as_of)
+        
+        if not points_data:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No FX data available for {request.pair} from {request.provider}"
+            )
+        
+        # Bootstrap FX forward curve
+        fx_data = bootstrap_fx_forward_curve(
+            Currency(base_currency),
+            Currency(quote_currency),
+            request.as_of,
+            spot_rate,
+            points_data
+        )
+        
+        # Generate FX ID
+        fx_id = f"{request.pair}_{request.as_of.isoformat()}_{request.provider}"
+        
+        # Store FX curve
+        fx_storage[fx_id] = fx_data
+        
+        # Return FX forward reference
+        return FxFwdRef(
+            id=fx_id,
+            as_of=request.as_of,
+            pair=request.pair,
+            spot_rate=spot_rate,
+            method=fx_data['method'],
+            nodes=fx_data['nodes'],
+            node_count=fx_data['node_count']
+        )
+        
+    except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=500,
+            detail=f"Error bootstrapping FX forward curve: {str(e)}"
+        )
+
+
+@router.get("/curves/{curve_id}")
+async def get_curve(curve_id: str) -> Dict[str, Any]:
+    """Get stored curve by ID.
+    
+    Args:
+        curve_id: Curve identifier
+        
+    Returns:
+        Curve data
+        
+    Raises:
+        HTTPException: If curve not found
+    """
+    if curve_id not in curves_storage:
+        raise HTTPException(
+            status_code=404,
             detail=f"Curve {curve_id} not found"
         )
     
-    curve_data = curves_db[curve_id]
-    return CurveResponse(
-        curve_id=curve_data["curve_id"],
-        curve_type=curve_data["curve_type"],
-        currency=curve_data["currency"],
-        index=curve_data["index"],
-        as_of_date=curve_data["as_of_date"],
-        nodes=curve_data["nodes"],
-        version=curve_data["version"]
-    )
+    return curves_storage[curve_id]
 
-@router.get("/", response_model=List[str])
-async def list_curves():
-    """List all available curves"""
-    return list(curves_db.keys())
+
+@router.get("/fx/{fx_id}")
+async def get_fx_curve(fx_id: str) -> Dict[str, Any]:
+    """Get stored FX curve by ID.
+    
+    Args:
+        fx_id: FX curve identifier
+        
+    Returns:
+        FX curve data
+        
+    Raises:
+        HTTPException: If FX curve not found
+    """
+    if fx_id not in fx_storage:
+        raise HTTPException(
+            status_code=404,
+            detail=f"FX curve {fx_id} not found"
+        )
+    
+    return fx_storage[fx_id]
+
+
+@router.get("/curves")
+async def list_curves() -> Dict[str, Any]:
+    """List all stored curves.
+    
+    Returns:
+        List of stored curves
+    """
+    return {
+        "curves": list(curves_storage.keys()),
+        "fx_curves": list(fx_storage.keys()),
+        "total_curves": len(curves_storage),
+        "total_fx_curves": len(fx_storage)
+    }
