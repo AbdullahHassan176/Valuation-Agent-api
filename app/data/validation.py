@@ -81,8 +81,23 @@ class DataValidator:
         if len(quotes) < 2:
             return results
         
-        # Sort quotes by tenor (simple string sort for now)
-        sorted_quotes = sorted(quotes, key=lambda q: q.tenor)
+        # Sort quotes by tenor using proper tenor ordering
+        def tenor_sort_key(quote):
+            tenor = quote.tenor.upper()
+            if tenor == "ON":
+                return (0, 0)  # Overnight first
+            elif tenor.endswith("D"):
+                return (1, int(tenor[:-1]))
+            elif tenor.endswith("W"):
+                return (2, int(tenor[:-1]))
+            elif tenor.endswith("M"):
+                return (3, int(tenor[:-1]))
+            elif tenor.endswith("Y"):
+                return (4, int(tenor[:-1]))
+            else:
+                return (5, 0)  # Unknown tenors last
+        
+        sorted_quotes = sorted(quotes, key=tenor_sort_key)
         
         for i in range(1, len(sorted_quotes)):
             prev_rate = sorted_quotes[i-1].rate

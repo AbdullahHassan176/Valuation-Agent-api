@@ -1,7 +1,8 @@
-from typing import Optional, Union
-from pydantic import BaseModel, Field
+from typing import Optional, Union, Annotated
+from pydantic import BaseModel, Field, ConfigDict, field_serializer
 from datetime import date
 from enum import Enum
+import json
 
 class DayCountConvention(str, Enum):
     ACT_360 = "ACT/360"
@@ -25,6 +26,8 @@ class BusinessDayConvention(str, Enum):
 
 class IRSSpec(BaseModel):
     """Interest Rate Swap specification"""
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+    
     notional: float = Field(..., description="Notional amount", gt=0)
     ccy: str = Field(..., description="Currency code (e.g., USD, EUR)", min_length=3, max_length=3)
     payFixed: bool = Field(..., description="True if paying fixed rate, False if receiving fixed rate")
@@ -39,9 +42,15 @@ class IRSSpec(BaseModel):
     calendar: str = Field(..., description="Business day calendar (e.g., USD, EUR)")
     bdc: BusinessDayConvention = Field(..., description="Business day convention")
     csa: Optional[str] = Field(None, description="Credit Support Annex identifier")
+    
+    @field_serializer('effective', 'maturity')
+    def serialize_dates(self, value: date) -> str:
+        return value.isoformat()
 
 class CCSSpec(BaseModel):
     """Cross Currency Swap specification"""
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+    
     notional: float = Field(..., description="Notional amount", gt=0)
     ccy: str = Field(..., description="Currency code (e.g., USD, EUR)", min_length=3, max_length=3)
     payFixed: bool = Field(..., description="True if paying fixed rate, False if receiving fixed rate")
@@ -60,3 +69,8 @@ class CCSSpec(BaseModel):
     notionalCcy2: float = Field(..., description="Notional amount in second currency", gt=0)
     ccy2: str = Field(..., description="Second currency code", min_length=3, max_length=3)
     fxRate: Optional[float] = Field(None, description="FX rate (if not provided, will be calculated)", gt=0)
+    
+    @field_serializer('effective', 'maturity')
+    def serialize_dates(self, value: date) -> str:
+        return value.isoformat()
+

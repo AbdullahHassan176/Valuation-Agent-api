@@ -182,7 +182,8 @@ def validate_approach_list(approaches: List[str]) -> List[str]:
         "basis_adjustment",
         "fx_conversion",
         "overnight_index",
-        "cross_currency_basis"
+        "cross_currency_basis",
+        "HW1F-variance-matching"
     ]
     
     for approach in approaches:
@@ -190,3 +191,4 @@ def validate_approach_list(approaches: List[str]) -> List[str]:
             errors.append(f"Invalid pricing approach: {approach}")
     
     return errors
+

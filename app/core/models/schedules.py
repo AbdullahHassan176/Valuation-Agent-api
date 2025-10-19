@@ -74,3 +74,4 @@ class ScheduleBuilder:
             business_day_convention=self.business_day_convention,
             calendar=self.calendar
         )
+

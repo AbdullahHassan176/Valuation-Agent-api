@@ -160,3 +160,4 @@ def interpolate_curve(points: List[CurvePoint], target_date: date) -> float:
     
     weight = days_after / total_days
     return before_point.rate * weight + after_point.rate * (1 - weight)
+

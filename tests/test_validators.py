@@ -276,3 +276,4 @@ class TestUtilityValidators:
         errors = validate_approach_list(["invalid_approach"])
         assert len(errors) == 1
         assert "Invalid pricing approach" in errors[0]
+

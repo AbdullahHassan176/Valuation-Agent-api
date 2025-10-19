@@ -174,3 +174,4 @@ def bootstrap_usd_ois_curve(as_of_date: date) -> CurveRef:
     """
     quotes = catalog.get_usd_ois_quotes()
     return bootstrap_discount_curve(as_of_date, quotes)
+

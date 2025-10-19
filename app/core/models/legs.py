@@ -63,3 +63,4 @@ class SwapLegs:
                 self.legs.append(self.fixed_leg)
             if self.floating_leg:
                 self.legs.append(self.floating_leg)
+

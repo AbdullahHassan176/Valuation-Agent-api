@@ -124,3 +124,4 @@ def create_simple_schedule(effective_date: date, maturity_date: date, frequency:
     
     schedule.append(maturity_date)
     return schedule
+

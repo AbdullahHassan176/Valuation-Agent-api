@@ -1,0 +1,33 @@
+{
+  "test_name": "standard_irs_2y_5pct",
+  "run_id": "f99649d3-1f83-4766-ba0f-6a39140c12c1",
+  "result": {
+    "run_id": "f99649d3-1f83-4766-ba0f-6a39140c12c1",
+    "total_pv": 0.0,
+    "components": {
+      "fixed_leg_pv": 526656.5356785349,
+      "floating_leg_pv": 526656.5356785349,
+      "net_pv": 0.0,
+      "notional": 10000000.0,
+      "fixed_rate": 0.05
+    },
+    "market_data_hash": "usd_ois_quotes_default_2024-01-01",
+    "model_hash": "dcf_irs_model_20251018_075750",
+    "calculated_at": "2025-10-18T07:57:50.123222",
+    "metadata": {
+      "instrument_type": "IRS",
+      "pricing_model": "dcf_irs_pricer",
+      "curves_used": [
+        "USD_OIS_DISCOUNT"
+      ],
+      "as_of_date": "2024-01-01",
+      "market_data_profile": "default",
+      "spec_hash": "irs_10000000.0_USD_2024-01-01_2026-01-01",
+      "calculation_timestamp": "2025-10-18T07:57:50.123222",
+      "discount_curve_nodes": 19
+    },
+    "xva": null
+  },
+  "sensitivity": null,
+  "timestamp": "2025-10-18T07:57:50.134344"
+}

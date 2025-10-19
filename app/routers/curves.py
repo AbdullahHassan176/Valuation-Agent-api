@@ -3,7 +3,7 @@ from fastapi import APIRouter, HTTPException, status
 from datetime import date
 from pydantic import BaseModel
 
-from ..curves.ois import bootstrap_usd_ois_curve
+from ..core.curves.ois import bootstrap_usd_ois_curve
 from ..data.catalog import catalog
 from ..data.validation import DataValidator
 

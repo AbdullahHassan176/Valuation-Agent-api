@@ -64,3 +64,4 @@ class MarketDataCatalog:
 
 # Global catalog instance
 catalog = MarketDataCatalog()
+

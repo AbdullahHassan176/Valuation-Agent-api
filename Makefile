@@ -19,3 +19,4 @@ install-deps:
 	@echo "Installing SDK generation dependencies..."
 	@pip install openapi-python-client
 	@echo "Installed openapi-python-client"
+
