@@ -10,6 +10,8 @@ pytest==7.4.4
 httpx==0.25.2
 ruff==0.1.6
 requests==2.31.0
+quantlib==1.32
+scipy==1.11.4
 
 
 
