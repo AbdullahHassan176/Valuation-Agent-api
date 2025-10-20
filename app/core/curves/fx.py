@@ -181,3 +181,6 @@ def bootstrap_fx_forward_curve(
     """
     curve = FXForwardCurve(base_currency, quote_currency, as_of)
     return curve.bootstrap_from_data(spot_rate, points_data)
+
+
+

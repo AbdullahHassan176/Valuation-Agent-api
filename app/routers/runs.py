@@ -316,6 +316,11 @@ def _validate_credit_curve(curve, curve_type: str) -> List[str]:
     
     return errors
 
+@router.get("/", response_model=List[RunStatus])
+async def list_runs() -> List[RunStatus]:
+    """Get all valuation runs"""
+    return list(runs_db.values())
+
 @router.get("/{run_id}", response_model=RunStatus)
 async def get_run(run_id: str) -> RunStatus:
     """Get the status of a valuation run"""

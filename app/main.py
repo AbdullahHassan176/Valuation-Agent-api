@@ -3,7 +3,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.settings import get_settings
-from app.routers import health, curves
+from app.routers import health, curves, runs
 
 # Create FastAPI app
 app = FastAPI(
@@ -29,6 +29,7 @@ app.add_middleware(
 # Include routers
 app.include_router(health.router, tags=["health"])
 app.include_router(curves.router, tags=["curves"])
+app.include_router(runs.router, prefix="/api/valuation", tags=["runs"])
 
 
 @app.get("/")
