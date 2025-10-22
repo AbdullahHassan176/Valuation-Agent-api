@@ -59,3 +59,4 @@ except ImportError as e:
         port = int(os.environ.get("PORT", 9000))
         print(f"🚀 Starting fallback server on port {port}")
         uvicorn.run(fallback_app, host="0.0.0.0", port=port)
+
